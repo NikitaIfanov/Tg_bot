@@ -101,3 +101,8 @@ func DataFloatToMsg(bot *tgbotapi.BotAPI, ChatID int64, data Exchange.DataFloat)
 	msg := fmt.Sprintf("%s:\nSale price: %.2f$\nBuy price: %.2f$", data.Exchange, data.SalePrice, data.BuyPrice)
 	SendMsg(bot, ChatID, msg)
 }
+
+/*type Chan struct {
+	C    chan struct{}
+	Pair Exchange.TrackingPair
+}*/

@@ -57,17 +57,18 @@ func Bot() {
 
 	updates := bot.GetUpdatesChan(u)
 	var pair = Exchange.Pair{}
-	var trackingpair = Exchange.TrackingPair{}
+	var trackingPair = Exchange.TrackingPair{}
 	m := make(map[int]Exchange.TrackingPair)
+	done := make(chan struct{})
 	for update := range updates {
-		done := make(chan struct{})
+
 		if update.Message != nil {
 			switch {
 			//Enter in bot
 			case update.Message.Text == "/start":
 				SendMsgWithKeyboard("Hello", bot, update.Message.Chat.ID, NewKeyboard)
 			case update.Message.Text == "stop":
-				<-done
+				done <- struct{}{}
 			case len(update.Message.Text) >= 6:
 
 				command := strings.Split(update.Message.Text, " ")
@@ -250,23 +251,30 @@ func Bot() {
 
 			case "Track":
 
-				go func(d chan struct{}) {
-
+				go func(d chan struct{}, ChatID int64) {
+					timer := time.NewTicker(1 * time.Second)
+					trackingPair = Exchange.Tracking(pair.Make(s), pair.Difference)
+					m[trackingPair.ID] = trackingPair
 					for {
+						select {
+						case <-d:
+							timer.Stop()
+							return
+						case <-timer.C:
 
-						trackingpair = Exchange.Tracking(pair.Make(s), pair.Difference)
-						m[trackingpair.ID] = trackingpair
-						if trackingpair.Flag == true {
-							DataFloatToMsg(bot, update.CallbackQuery.Message.Chat.ID, trackingpair.MinBuy)
-							DataFloatToMsg(bot, update.CallbackQuery.Message.Chat.ID, trackingpair.MaxSale)
+							if trackingPair.Flag == true {
+								DataFloatToMsg(bot, ChatID, trackingPair.MinBuy)
+								DataFloatToMsg(bot, ChatID, trackingPair.MaxSale)
+							}
+
 						}
-						time.Sleep(1 * time.Second)
 					}
 
-				}(done)
+				}(done, update.CallbackQuery.Message.Chat.ID)
 
 			case "show":
-				msgStr := fmt.Sprintf("%d:", trackingpair.ID)
+				log.Print(m)
+				msgStr := fmt.Sprintf("%d:", trackingPair.ID)
 				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, msgStr)
 				if _, err := bot.Send(msg); err != nil {
 					log.Print(err)
