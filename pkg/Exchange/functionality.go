@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -115,7 +114,7 @@ func ParseFloat(s string) float64 {
 
 type TrackingPair struct {
 	Flag    bool
-	ID      int
+	Pair    string
 	MinBuy  DataFloat
 	MaxSale DataFloat
 }
@@ -123,7 +122,6 @@ type TrackingPair struct {
 func Tracking(Data []DataFloat, difference float64) TrackingPair {
 	t := TrackingPair{
 		Flag:    false,
-		ID:      rand.Int(),
 		MinBuy:  Data[0],
 		MaxSale: Data[0],
 	}

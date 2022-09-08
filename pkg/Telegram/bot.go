@@ -1,10 +1,10 @@
 package tg
 
 import (
-	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"main.go/configs"
+	"main.go/pkg/Db"
 	"main.go/pkg/Exchange"
 	"strings"
 	"time"
@@ -19,7 +19,7 @@ var s = Exchange.SelectExchange{
 }
 var NewKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("New Pair", "newpair"),
+		tgbotapi.NewInlineKeyboardButtonData("New Pair", "newPair"),
 		tgbotapi.NewInlineKeyboardButtonData("Show", "show"),
 		tgbotapi.NewInlineKeyboardButtonData("Help", "help"),
 	),
@@ -56,10 +56,14 @@ func Bot() {
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
-	var pair = Exchange.Pair{}
-	var trackingPair = Exchange.TrackingPair{}
-	m := make(map[int]Exchange.TrackingPair)
-	done := make(chan struct{})
+	var (
+		pair         = Exchange.Pair{}
+		trackingPair = Exchange.TrackingPair{}
+		hash         = ""
+		m            = make(map[string]Exchange.TrackingPair)
+		done         = make(chan struct{})
+	)
+
 	for update := range updates {
 
 		if update.Message != nil {
@@ -75,11 +79,13 @@ func Bot() {
 				switch {
 				case len(command) == 2:
 					pair = Exchange.EnterPair(command[0], command[1], "0")
-					log.Print(pair)
+
 					SendMsgWithKeyboard("Select Exchanges", bot, update.Message.Chat.ID, ExchangeKeyboard)
 				case len(command) == 3:
+					trackingPair.Pair = command[0] + " " + command[1]
 					pair = Exchange.EnterPair(command[0], command[1], command[2])
-					log.Print(pair)
+					hash = Db.GetHash(trackingPair.Pair)
+					m[Db.GetHash(command[0]+" "+command[1]+" "+command[2])] = trackingPair
 					SendMsgWithKeyboard("Select Exchanges", bot, update.Message.Chat.ID, ExchangeKeyboard)
 				default:
 
@@ -98,7 +104,7 @@ func Bot() {
 
 		if update.CallbackQuery != nil {
 			switch update.CallbackQuery.Data {
-			case "newpair":
+			case "newPair":
 				SendMsg(bot, update.CallbackQuery.Message.Chat.ID,
 					"Enter a Cryptocurrency Pair Example:'BTC USDT' for see one time\n"+
 						" or\n"+
@@ -254,7 +260,8 @@ func Bot() {
 				go func(d chan struct{}, ChatID int64) {
 					timer := time.NewTicker(1 * time.Second)
 					trackingPair = Exchange.Tracking(pair.Make(s), pair.Difference)
-					m[trackingPair.ID] = trackingPair
+					m[hash] = trackingPair
+					hash = ""
 					for {
 						select {
 						case <-d:
@@ -273,12 +280,9 @@ func Bot() {
 				}(done, update.CallbackQuery.Message.Chat.ID)
 
 			case "show":
+				SendMsg(bot, update.CallbackQuery.Message.Chat.ID, "show")
 				log.Print(m)
-				msgStr := fmt.Sprintf("%d:", trackingPair.ID)
-				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, msgStr)
-				if _, err := bot.Send(msg); err != nil {
-					log.Print(err)
-				}
+
 			case "help":
 				SendMsg(bot, update.CallbackQuery.Message.Chat.ID, "Help")
 			case "about":
