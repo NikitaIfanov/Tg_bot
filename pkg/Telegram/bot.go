@@ -59,9 +59,9 @@ func Bot() {
 	var (
 		pair         = Exchange.Pair{}
 		trackingPair = Exchange.TrackingPair{}
-		hash         = ""
-		m            = make(map[string]Exchange.TrackingPair)
-		done         = make(chan struct{})
+
+		m    = make(map[string]bool)
+		done = make(chan struct{})
 	)
 
 	for update := range updates {
@@ -84,8 +84,8 @@ func Bot() {
 				case len(command) == 3:
 					trackingPair.Pair = command[0] + " " + command[1]
 					pair = Exchange.EnterPair(command[0], command[1], command[2])
-					hash = Db.GetHash(trackingPair.Pair)
-					m[Db.GetHash(command[0]+" "+command[1]+" "+command[2])] = trackingPair
+
+					m[command[0]+command[1]+" "+command[2]] = true
 					SendMsgWithKeyboard("Select Exchanges", bot, update.Message.Chat.ID, ExchangeKeyboard)
 				default:
 
@@ -178,6 +178,7 @@ func Bot() {
 			case "ByBit":
 				if s.ByBitTrue == false {
 					s.ByBitTrue = true
+
 					ExchangeKeyboard.InlineKeyboard[1][0].Text = Button(&s, Exchange.ByBit)
 					callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Selected"+" "+Exchange.ByBit)
 					if _, err := bot.Request(callback); err != nil {
@@ -187,6 +188,7 @@ func Bot() {
 				} else {
 					s.All = false
 					s.ByBitTrue = false
+
 					ExchangeKeyboard.InlineKeyboard[1][0].Text = Button(&s, Exchange.ByBit)
 					ExchangeKeyboard.InlineKeyboard[1][2].Text = Button(&s, Exchange.All)
 					callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Canceled"+" "+Exchange.ByBit)
@@ -260,8 +262,7 @@ func Bot() {
 				go func(d chan struct{}, ChatID int64) {
 					timer := time.NewTicker(1 * time.Second)
 					trackingPair = Exchange.Tracking(pair.Make(s), pair.Difference)
-					m[hash] = trackingPair
-					hash = ""
+
 					for {
 						select {
 						case <-d:
@@ -280,7 +281,8 @@ func Bot() {
 				}(done, update.CallbackQuery.Message.Chat.ID)
 
 			case "show":
-				SendMsg(bot, update.CallbackQuery.Message.Chat.ID, "show")
+
+				SendMsg(bot, update.CallbackQuery.Message.Chat.ID, Db.Show(m))
 				log.Print(m)
 
 			case "help":

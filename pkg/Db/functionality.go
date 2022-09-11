@@ -1,12 +1,16 @@
 package Db
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"fmt"
 )
 
-func GetHash(input string) string {
-	h := md5.New()
-	h.Write([]byte(input))
-	return hex.EncodeToString(h.Sum(nil))
+func Show(db map[string]bool) string {
+
+	msg := ""
+	for key, value := range db {
+		if value == true {
+			msg += fmt.Sprintf("%s\n", key)
+		}
+	}
+	return msg
 }
