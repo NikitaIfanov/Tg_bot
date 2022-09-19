@@ -1,6 +1,7 @@
 package tg
 
 import (
+	"encoding/json"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"main.go/configs"
@@ -56,12 +57,13 @@ func Bot() {
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
+
 	var (
 		pair         = Exchange.Pair{}
 		trackingPair = Exchange.TrackingPair{}
-
-		m    = make(map[string]bool)
-		done = make(chan struct{})
+		store        = Db.Store{}
+		m            = make(map[string]bool)
+		done         = make(chan struct{})
 	)
 
 	for update := range updates {
@@ -71,6 +73,12 @@ func Bot() {
 			//Enter in bot
 			case update.Message.Text == "/start":
 				SendMsgWithKeyboard("Hello", bot, update.Message.Chat.ID, NewKeyboard)
+				if err := store.Open(); err != nil {
+					log.Print(err)
+				}
+				store.User().AddUser(int(update.Message.Chat.ID))
+				defer store.Close()
+
 			case update.Message.Text == "stop":
 				done <- struct{}{}
 			case len(update.Message.Text) >= 6:
@@ -262,7 +270,19 @@ func Bot() {
 				go func(d chan struct{}, ChatID int64) {
 					timer := time.NewTicker(1 * time.Second)
 					trackingPair = Exchange.Tracking(pair.Make(s), pair.Difference)
+					data := map[string]string{
+						"Pair": trackingPair.Pair,
+					}
 
+					file, err := json.MarshalIndent(&data, "", "	")
+					if err != nil {
+						log.Print(err)
+					}
+					log.Print(string(file))
+					store.Open()
+
+					store.User().AddPair(int(ChatID), file)
+					store.Close()
 					for {
 						select {
 						case <-d:
