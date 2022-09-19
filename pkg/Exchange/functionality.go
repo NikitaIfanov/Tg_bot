@@ -142,3 +142,8 @@ func Tracking(Data []DataFloat, difference float64) TrackingPair {
 	}
 	return t
 }
+
+type ForDb struct {
+	Exchanges []string `json:"exchanges"`
+	Pair      []string `json:"pair"`
+}

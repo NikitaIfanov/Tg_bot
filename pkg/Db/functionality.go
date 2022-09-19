@@ -1,16 +1,16 @@
 package Db
 
 import (
-	"fmt"
+	"encoding/json"
+	"log"
+	"main.go/pkg/Exchange"
 )
 
-func Show(db map[string]bool) string {
-
-	msg := ""
-	for key, value := range db {
-		if value == true {
-			msg += fmt.Sprintf("%s\n", key)
-		}
+func Marshal(forDb *Exchange.ForDb) []byte {
+	file, err := json.MarshalIndent(forDb, "", "    ")
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
-	return msg
+	return file
 }

@@ -64,6 +64,7 @@ func Bot() {
 		store        = Db.Store{}
 		m            = make(map[string]bool)
 		done         = make(chan struct{})
+		forDb        = Exchange.ForDb{}
 	)
 
 	for update := range updates {
@@ -269,16 +270,13 @@ func Bot() {
 
 				go func(d chan struct{}, ChatID int64) {
 					timer := time.NewTicker(1 * time.Second)
-					trackingPair = Exchange.Tracking(pair.Make(s), pair.Difference)
-					data := map[string]string{
-						"Pair": trackingPair.Pair,
+					some := pair.Make(s)
+					for _, num := range some {
+						forDb.Exchanges = append(forDb.Exchanges, num.Exchange)
 					}
-
-					file, err := json.MarshalIndent(&data, "", "	")
-					if err != nil {
-						log.Print(err)
-					}
-					log.Print(string(file))
+					trackingPair = Exchange.Tracking(some, pair.Difference)
+					forDb.Pair = append(forDb.Pair, trackingPair.Pair)
+					file := Db.Marshal(&forDb)
 					store.Open()
 
 					store.User().AddPair(int(ChatID), file)
